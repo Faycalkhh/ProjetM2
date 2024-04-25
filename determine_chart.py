@@ -1,107 +1,143 @@
 import pandas as pd
 import os
+from datetime import datetime
+import pycountry
 
 def choose_chart(data):
-    if dataset_is_time_series_data(data):
-        if dataset_is_one_time_series(data):
-            return 'bar plot'
-        elif dataset_is_several_time_series(data):
-            return 'stacked area chart' 
-
-    elif dataset_is_categories_and_numeric_values(data):
-        if dataset_is_one_numiric(data) and dataset_is_one_categorie(data):
-            if dataset_has_one_value_per_categorie_group(data):
+    #verify if data is categorical and also numerical
+    if dataset_is_categories_and_numeric_values(data):
+        #verify if data is time series
+        if dataset_is_time_series_data(data):
+            #verify if data containe one set of numerical data or several
+            if dataset_is_one_numiric(data):
+                return 'area plot'
+            else:
+                return 'line plot'
+        elif dataset_has_country_data(data):
+            if dataset_is_one_numiric(data):
+                return 'map with values'
+        #verify if data containe one set of categorical data or several
+        elif dataset_is_one_categorie(data):
+            #verify if data containe one set of numerical values or several
+            if dataset_is_one_numiric(data):
+                #verify if categorical data have less then 6 values and have few similaire values
                 if dataset_has_few_categories(data) and dataset_has_few_similaire_values(data):
                     return 'pie chart'
+                #verify if categorical data have more then 6 values and have few similaire values
                 elif not dataset_has_few_categories(data) and dataset_has_few_similaire_values(data):
                     return 'doughnut chart'
                 else:
-                    return 'bar plot'
-            elif not dataset_has_one_value_per_categorie_group(data):
-                return 'density plot'
-        elif dataset_is_one_categorie(data) and not dataset_is_one_numiric(data):
-            if dataset_has_one_value_per_categorie_group(data):
-                return 'lollipop'
-            elif dataset_has_no_orderd_values(data):
-                return '2D density'
-            elif not dataset_has_no_orderd_values(data):
-                return 'steam graph'
-        elif dataset_is_one_numiric(data) and not dataset_is_one_categorie(data):
-            if dataset_has_sub_groups(data):
-                if dataset_has_one_value_per_sub_group(data):
-                    return 'group bar plot'
-                elif not dataset_has_one_value_per_sub_group(data):
+                    return 'bar chart'
+            elif dataset_is_two_numiric(data):
+                #verify if categorical data don't have any repeted values
+                if dataset_has_one_value_per_categorie_group(data):
+                    return 'grouped bar plot'
+                else:
                     return 'box plot'
-            elif dataset_has_nested_leafs(data):
-                if dataset_has_one_value_per_nested_group(data):
-                    return 'sunburst'
-                elif not dataset_has_one_value_per_nested_group(data):
-                    return 'violin'
-            elif dataset_has_adjacency(data):
-                return 'arc'
-    
+            elif dataset_is_three_numiric(data):
+                return 'bubble chart'
+            elif dataset_is_several_numiric(data):
+                #verify if categorical data don't have any repeted values
+                if dataset_has_one_value_per_categorie_group(data):
+                    #verify if categorical data have less then 4 values
+                    if dataset_has_less_then_4_categories(data):
+                        return 'radar chart'
+                    return 'heatmap'
+                else:
+                    return 'box plot'
+        elif dataset_is_two_categorie(data):
+            #verify if data containe one set of numerical values or several
+            if dataset_is_one_numiric(data):
+                #verify if data have categories and subcategories
+                if dataset_has_sub_groups(data):
+                    return 'treemap'
+            elif dataset_is_three_numiric(data):
+                return 'bubble chart'
+            else:
+                return 'parallel coordinates plot'
+        elif dataset_is_several_categorie(data):
+            #verify if data containe one set of numerical values or several
+            if dataset_is_one_numiric(data):
+                #verify if data have categories and subcategories
+                if dataset_has_sub_groups(data):
+                    return 'sunburst chart'
+            else:
+                return 'parallel coordinates plot'
+    #verify if data containe numerical data
     elif dataset_is_numeric(data):
-        
+        #verify if data containe one set of numerical values or several
         if dataset_is_one_numiric(data):
             return 'histogram'
         
         elif dataset_is_two_numiric(data):
-            if not dataset_is_orderd(data):
-                if dataset_has_few_points(data):
-                    return 'scatter plot'
-                elif not dataset_has_few_points(data):
-                    return 'density plot'
-            elif dataset_is_orderd(data):
-                return 'area plot'
-        
+            #verify if data have many values more then 400 data 
+            if dataset_has_many_point(data):
+                return 'histogram'
+            return 'scatter plot'
         elif dataset_is_three_numiric(data):
-            if not dataset_is_orderd(data):
-                    return 'bubble plot'
-            elif dataset_is_orderd(data):
-                return 'staked area plot'
+            return 'bubble chart'
+    return 'unhendeld error'
         
-        elif dataset_is_several_numiric(data):
-            if not dataset_is_orderd(data):
-                    return 'density plot'
-            elif dataset_is_orderd(data):
-                return 'line plot'
-    
-    elif dataset_is_networks_series(data):
-        if dataset_is_nested_or_hierarchical(data):
-            return 'DENDROGRAM'
-        return 'network'
-
-
-def dataset_has_one_value_per_sub_group(data):
-    pass
-
-def dataset_has_one_value_per_nested_group(data):
-    pass
-
 def dataset_has_sub_groups(data):
-    pass
+    unique_combinations = data.groupby(list(data.columns)).size().reset_index().rename(columns={0:'count'})
+    if len(unique_combinations) > 1:
+        return True
+    else:
+        return False
 
-def dataset_has_nested_leafs(data):
-    pass
 
-def dataset_is_orderd(date):
-    pass
+def IsTimeOrDate(input_str):
+    formats = [
+        "%Y-%m-%d",
+        "%Y-%m-%dT%H:%M:%S",
+        "%m/%d/%Y",
+        "%d/%m/%Y",
+        "%d-%m-%Y",
+        "%m/%d/%Y %I:%M:%S %p",
+        "%d/%m/%Y %I:%M:%S %p",
+        "%m-%d-%Y %I:%M:%S %p",
+        "%d-%m-%Y %I:%M:%S %p",
+    ]
 
-def dataset_has_few_points(date):
-    pass
+    for fmt in formats:
+        try:
+            datetime.strptime(input_str, fmt)
+            return True
+        except ValueError:
+            pass
+    return False
 
-def dataset_has_nested_lists(date):
-    pass
+def dataset_is_time_series_data(data):
+    for col in data.columns:
+        is_date_or_time_column = True
+        for value in data[col]:
+            if not IsTimeOrDate(str(value)):
+                is_date_or_time_column = False
+                break
+        if is_date_or_time_column:
+            return True
+    return False
 
-def dataset_is_networks_series(data):
-    pass
+def is_country(name):
+    country_names = set(country.name for country in pycountry.countries)
+    return name in country_names
 
-def dataset_is_nested_or_hierarchical(data):
-    pass
+def is_column_countries(column_values):
+    for value in column_values:
+        if not is_country(value):
+            return False
+    return True
 
-def dataset_has_adjacency(data):
-    pass
+def dataset_has_country_data(data):
+    categorical_columns = [col for col in data.columns if data[col].dtype == 'object']
+    for col in categorical_columns:
+        if len(data[col]) == len(set(data[col])) and is_column_countries(data[col]):
+            return True
+    return False
 
+def dataset_has_many_point(data):
+    num_rows, num_columns = data.shape  
+    return (num_rows > 400)
 
 def dataset_is_categories_and_numeric_values(data):
     categorical_columns = data.select_dtypes(include=['object']).columns
@@ -229,12 +265,23 @@ def dataset_is_several_time_series(data):
 
 
 def dataset_cleaning(data):
-    #change year data to str
-    pass
+    # Identify columns that might represent years
+    potential_year_columns = []
+    for col in data.columns:
+        if 'year' in col.lower() or 'yr' in col.lower():
+            potential_year_columns.append(col)
+        elif data[col].dtype == 'int64' and data[col].min() >= 1900 and data[col].max() <= 2100:
+            potential_year_columns.append(col)
+
+    # Convert the identified year columns to categorical data
+    for col in potential_year_columns:
+        data[col] = data[col].astype(str)
+
+    return data
 
 def load_csv_dataset(file_path):
     # Load dataset from CSV file
-    return pd.read_csv(file_path)
+    return dataset_cleaning(pd.read_csv(file_path))
 
 def main(repo):
     dataset = load_csv_dataset(file_path=repo)
@@ -248,5 +295,5 @@ def launch_test(directory):
             main(os.path.join(root, file))
 
 if __name__ == "__main__":
-    repo_path = "C:\\Users\\totti\\VSCodeProjects\\Jupiter\\ProjetM2\\Data"
+    repo_path = str(os.getcwd()+"//Data")
     launch_test(repo_path)
