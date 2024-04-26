@@ -1,7 +1,10 @@
 import pandas as pd
-import os
+import numpy as np
+import matplotlib.pyplot as plt
 from datetime import datetime
+import os
 import pycountry
+import mplcursors
 
 def choose_chart(data):
     #verify if data is categorical and also numerical
@@ -10,9 +13,9 @@ def choose_chart(data):
         if dataset_is_time_series_data(data):
             #verify if data containe one set of numerical data or several
             if dataset_is_one_numiric(data):
-                return 'area plot'
+                return area(data)
             else:
-                return 'line plot'
+                return line(data)
         elif dataset_has_country_data(data):
             if dataset_is_one_numiric(data):
                 return 'map with values'
@@ -22,23 +25,25 @@ def choose_chart(data):
             if dataset_is_one_numiric(data):
                 #verify if categorical data have less then 6 values and have few similaire values
                 if dataset_has_few_categories(data) and dataset_has_few_similaire_values(data):
-                    return 'pie chart'
+                    return pie(data)
                 #verify if categorical data have more then 6 values and have few similaire values
                 elif not dataset_has_few_categories(data) and dataset_has_few_similaire_values(data):
-                    return 'doughnut chart'
+                    return donut(data)
                 else:
-                    return 'bar chart'
+                    return bar(data)
             elif dataset_is_two_numiric(data):
                 #verify if categorical data don't have any repeted values
-                if dataset_has_one_value_per_categorie_group(data):
-                    return 'grouped bar plot'
+                if dataset_has_no_duplicate_values(data) and dataset_has_less_then_4_categories(data):
+                    return grouped_bar(data)
                 else:
                     return 'box plot'
             elif dataset_is_three_numiric(data):
-                return 'bubble chart'
+                if dataset_has_no_duplicate_values(data) and dataset_has_less_then_4_categories(data):
+                    return grouped_bar(data)
+                return bubble_one_cat(data)
             elif dataset_is_several_numiric(data):
                 #verify if categorical data don't have any repeted values
-                if dataset_has_one_value_per_categorie_group(data):
+                if dataset_has_no_duplicate_values(data):
                     #verify if categorical data have less then 4 values
                     if dataset_has_less_then_4_categories(data):
                         return 'radar chart'
@@ -67,23 +72,172 @@ def choose_chart(data):
     elif dataset_is_numeric(data):
         #verify if data containe one set of numerical values or several
         if dataset_is_one_numiric(data):
-            return 'histogram'
-        
+            return histogram(data,data.columns[0])
         elif dataset_is_two_numiric(data):
             #verify if data have many values more then 400 data 
             if dataset_has_many_point(data):
-                return 'histogram'
-            return 'scatter plot'
+                return histogram(data,data.columns[0],data.columns[1])
+            return scatter(data,data.columns[0],data.columns[1])
         elif dataset_is_three_numiric(data):
-            return 'bubble chart'
+            return bubble(data)
+    return 'error'
     return choose_chart(remove_least_important_column(data))
         
+def histogram(data,xlabel="Value",ylabel="Frequency"):
+    num_bins = int(np.sqrt(len(data)))
+    plt.hist(data, bins=num_bins, edgecolor='black')
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+    plt.show()
+    return 'histogram'
+        
+def scatter(data,xlabel="Value",ylabel="Frequency"):
+    plt.scatter(data[xlabel], data[ylabel], alpha=0.5)
+    plt.show()  
+    return 'scatter plot'
+
+def bubble(data):
+    numeric_columns = data.select_dtypes(include=['number']).columns
+    x=data[numeric_columns[0]]
+    y=data[numeric_columns[1]]
+    sizes=data[numeric_columns[2]]
+    colors = np.random.rand(len(x))
+    plt.scatter(x, y, s=sizes, c=colors, alpha=0.5)
+
+    plt.xlabel(numeric_columns[0])
+    plt.ylabel(numeric_columns[1])
+    plt.colorbar(label="Bubble sizes")
+
+    plt.show()
+    return 'bubble chart N'
+
+def bubble_one_cat(data):
+    numeric_columns = data.select_dtypes(include=['number']).columns
+    categorie_column = data.select_dtypes(include=['object']).columns[0]
+
+    labels=data[categorie_column]
+    x=data[numeric_columns[0]]
+    y=data[numeric_columns[1]]
+    sizes=data[numeric_columns[2]]
+
+    colors = np.random.rand(len(x))
+    plt.scatter(x, y, s=sizes, c=colors, alpha=0.5)
+
+    plt.xlabel(numeric_columns[0])
+    plt.ylabel(numeric_columns[1])
+    plt.colorbar(label="Bubble sizes")
+    mplcursors.cursor(hover=True).connect("add", lambda sel: sel.annotation.set_text(labels[sel.target.index]))
+    plt.show()
+    return 'bubble chart'
+
+def line(data):
+    categorical_columns = data.select_dtypes(include=['object']).columns
+    numeric_columns = data.select_dtypes(include=['number']).columns
+    
+    for cat_col in categorical_columns:
+        for num_col in numeric_columns:
+            plt.plot(data[cat_col], data[num_col], label=num_col)
+    plt.xlabel(categorical_columns[0])
+    if len(data[categorical_columns[0]]) > 8 or any(len(str(label)) > 7 for label in data[categorical_columns[0]]):
+        plt.xticks(rotation=45, ha='right')
+    plt.tight_layout()
+    plt.legend()
+    plt.show()
+    return 'line chart'
+
+def area(data):
+    numeric_columns = data.select_dtypes(include=['number']).columns
+    categorical_columns = data.select_dtypes(include=['object']).columns
+    plt.fill_between(data[categorical_columns[0]], data[numeric_columns[0]], color="skyblue", alpha=0.4)
+    plt.plot(data[categorical_columns[0]],data[numeric_columns[0]], color="Slateblue", alpha=0.6, linewidth=2)
+    plt.xlabel(categorical_columns[0])
+    plt.ylabel(numeric_columns[0])
+    if len(data[categorical_columns[0]]) > 8 or any(len(str(label)) > 7 for label in data[categorical_columns[0]]):
+        plt.xticks(rotation=45, ha='right')
+    plt.tight_layout()
+    plt.xlim(data[categorical_columns[0]].min(), data[categorical_columns[0]].max())  # Adjust as needed for x-axis
+    plt.ylim(0, data[numeric_columns[0]].max()) 
+    plt.show()
+    return 'area chart'
+
+def pie(data):
+    categorical_columns = data.select_dtypes(include=['object']).columns
+    numeric_columns = data.select_dtypes(include=['number']).columns
+    num_data = data[numeric_columns[0]]
+    labels = data[categorical_columns[0]]
+    plt.pie(num_data,labels=labels,autopct='%1.1f%%')
+    plt.show()  
+    
+    return 'pie chart'
+
+def bar(data):
+    categorical_columns = data.select_dtypes(include=['object']).columns
+    numeric_columns = data.select_dtypes(include=['number']).columns
+    num_data = data[numeric_columns[0]]
+    labels = data[categorical_columns[0]]
+    plt.bar(labels,num_data)
+    plt.ylabel(numeric_columns[0])
+    if len(labels) > 5 or any(len(str(label)) > 10 for label in labels):
+        plt.xticks(rotation=45, ha='right')
+    plt.tight_layout()
+    plt.show()
+    return 'bar chart'
+
+def grouped_bar(data):
+    categorical_columns = data.select_dtypes(include=['object']).columns
+    numeric_columns = data.select_dtypes(include=['number']).columns
+    
+    # Extracting data
+    categories = data[categorical_columns[0]]
+    num_data = data[numeric_columns]
+    
+    # Calculate the width of each bar
+    num_bars = len(numeric_columns)
+    bar_width = 0.35
+    index = np.arange(len(categories))
+    opacity = 0.8
+    
+    # Create bars for each numerical column
+    for i, col in enumerate(numeric_columns):
+        plt.bar(index + i * bar_width, num_data[col], bar_width, alpha=opacity, label=col)
+    
+    plt.xlabel(categorical_columns[0])
+    plt.ylabel("Values")
+    plt.title("Grouped Bar Plot")
+    plt.xticks(index + bar_width, categories)
+    
+    # Rotate x-axis labels if there are more than 5 values or if strings are too long
+    if len(categories) > 5 or any(len(str(label)) > 10 for label in categories):
+        plt.xticks(rotation=45, ha='right')
+    
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
+
+
+def donut(data):
+    categorical_columns = data.select_dtypes(include=['object']).columns
+    numeric_columns = data.select_dtypes(include=['number']).columns
+    num_data = data[numeric_columns[0]]
+    labels = data[categorical_columns[0]]
+    plt.pie(num_data, labels=labels,
+        autopct='%1.1f%%', pctdistance=0.85)
+    centre_circle = plt.Circle((0, 0), 0.65, fc='white')
+    fig = plt.gcf()
+    fig.gca().add_artist(centre_circle)
+    plt.show()  
+    return 'donut chart'
+
 def dataset_has_sub_groups(data):
     unique_combinations = data.groupby(list(data.columns)).size().reset_index().rename(columns={0:'count'})
     if len(unique_combinations) > 1:
         return True
     else:
         return False
+
+def dataset_has_no_duplicate_values(data):
+    categorical_columns = data.select_dtypes(include=['object']).columns
+    return len(set(data[categorical_columns[0]]))==len(data[categorical_columns[0]])
 
 
 def IsTimeOrDate(input_str):
@@ -197,7 +351,16 @@ def dataset_has_one_value_per_categorie_group(data):
 
 def dataset_has_few_categories(data):
     categorical_columns = [col for col in data.columns if data[col].dtype == 'object']
-    threshold = 6
+    threshold = 5
+    for col in categorical_columns:
+        unique_count = data[col].nunique()
+        if unique_count > threshold:
+            return False  
+    
+    return True
+def dataset_has_less_then_4_categories(data):
+    categorical_columns = [col for col in data.columns if data[col].dtype == 'object']
+    threshold = 4
     for col in categorical_columns:
         unique_count = data[col].nunique()
         if unique_count > threshold:
@@ -206,68 +369,20 @@ def dataset_has_few_categories(data):
     return True
 
 def dataset_has_few_similaire_values(data):
-    similarity_threshold = 2  
+    numerical_columns = data.select_dtypes(include=['number']).columns
     
-    for col in data.columns:
-        value_counts = data[col].value_counts()
-        
-        if len(value_counts) > 1 and value_counts.iloc[0] >= value_counts.iloc[1:].sum() + similarity_threshold:
-            return True  
+    numerical_column = numerical_columns[0]
     
-    return False
-
-def dataset_has_two_independent_lists(data):
-    categorical_columns = data.select_dtypes(include=['object', 'category']).columns
-
-    if len(categorical_columns) < 2:
-        return False
-    return True
-
-def dataset_has_no_orderd_values(data):
-    numeric_columns = data.select_dtypes(include=['int64', 'float64']).columns
+    percentages = (data[numerical_column] / data[numerical_column].sum()) * 100
     
-    for col in numeric_columns:
-        if not data[col].is_monotonic:
-            return True  
+    similarity_count = 0
+
+    for value in percentages:
+        similar_values = percentages[(percentages >= value - 5) & (percentages <= value + 5)]
+        if len(similar_values) >= 3:
+            similarity_count += 1
     
-    return False
-
-def dataset_has_one_orderd_values(data):
-    numeric_columns = data.select_dtypes(include=['int64', 'float64']).columns
-    ordered_count = 0
-    for col in numeric_columns:
-        if data[col].is_monotonic:
-            return True
-    return False
-
-def dataset_is_time_series_data(data):
-    if 'datetime_column' in data.columns:
-        if data['datetime_column'].dtype == 'datetime64[ns]':
-            if data['datetime_column'].is_monotonic_increasing or data['datetime_column'].is_monotonic_decreasing:
-                return True
-    return False
-
-def dataset_is_one_time_series(data):
-    datetime_columns = [col for col in data.columns if data[col].dtype == 'datetime64[ns]']
-    if len(datetime_columns) == 1:  
-        datetime_column = datetime_columns[0]
-        if data[datetime_column].is_unique:
-            if len(data.columns) == 1 or (len(data.columns) == 2 and 'other_column' in data.columns):  
-                return True
-    
-    return False
-
-def dataset_is_several_time_series(data):
-    datetime_columns = [col for col in data.columns if data[col].dtype == 'datetime64[ns]']
-    
-    if len(datetime_columns) > 1:  
-        
-        unique_values = [data[col].is_unique for col in datetime_columns]
-        if all(unique_values):
-            return True
-    
-    return False
-
+    return similarity_count < 3
 
 def dataset_cleaning(data):
     # Identify columns that might represent years
@@ -296,8 +411,8 @@ def main(repo):
 def launch_test(directory):
     for root, dirs, files in os.walk(directory):
         for file in files:
-            print(file)
-            main(os.path.join(root, file))
+            if file =="bubble_chart_data.csv":
+                main(os.path.join(root, file))
 
 if __name__ == "__main__":
     repo_path = str(os.getcwd()+"//Data")
