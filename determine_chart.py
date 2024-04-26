@@ -411,8 +411,7 @@ def main(repo):
 def launch_test(directory):
     for root, dirs, files in os.walk(directory):
         for file in files:
-            if file =="bubble_chart_data.csv":
-                main(os.path.join(root, file))
+            main(os.path.join(root, file))
 
 if __name__ == "__main__":
     repo_path = str(os.getcwd()+"//Data")
